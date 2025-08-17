@@ -16,7 +16,6 @@ router.post("/login", (req, res, next) => {
         let response = functions.createResponse("Usuário autenticado com sucesso", results.user, "POST", 200);
         return res.status(200).send(response);
     }).catch((error) => {
-        console.log(error)
         return res.status(500).send(error);
     });
 });

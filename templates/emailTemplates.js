@@ -1,14 +1,15 @@
 require('dotenv').config();
-const inviteUserHtml = require("./html/request-to-company");
-const resetPassword = require("./html/reset-password");
+const contactReturn = require("./html/contact-return");
+const contactHtml = require("./html/contact");
 
 let templates = {
-    inviteUser: function (requested_user_name, company_name, link_convite) {
-        let html = inviteUserHtml.replace("{{nome_destinatario}}", requested_user_name).replace("{{nome_empresa}}", company_name).replace("{{link_convite}}", link_convite);
-        return html;
+    contactReturn: function () {
+        return contactReturn;
     },
-    resetPassword: function (user_name, user_email, request_date, link) {
-        let html = resetPassword.replace("{{nome_usuario}}", user_name).replace("{{email_usuario}}", user_email).replace("{{data_solicitacao}}", request_date).replace("{{link_redefinicao}}", link);
+    contact: function (name, email, tel, obs, requestType, ip) {
+        let date = new Date();
+        let now = `${date.getDate()}/${date.getMonth() - 1}/${date.getFullYear()} ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
+        let html = contactHtml.replace("{name}", name).replace("{email}", email).replace("{tel}", tel).replace("{obs}", obs).replace("{requestType}", requestType).replace("{ip}", ip).replace("{date}", now);
         return html;
     }
 }

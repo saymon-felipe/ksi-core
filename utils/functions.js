@@ -58,6 +58,28 @@ let functions = {
         }
 
         return response;
+    },
+    getValueByColumn: function (table, targetColumn, initialValue, initialColumn) {
+        return new Promise((resolve, reject) => {
+            this.executeSql(
+                `
+                    SELECT
+                        ${targetColumn}
+                    FROM
+                        ${table}
+                    WHERE    
+                        ${initialColumn} = ${initialValue}
+                `, []
+            ).then((results) => {
+                if (results.length) {
+                    resolve(results[0][targetColumn])
+                } else {
+                    resolve(null);
+                }
+            }).catch((error) => {
+                reject(error);
+            })
+        })
     }
 }
 

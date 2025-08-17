@@ -7,6 +7,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 
 const userRoute = require('./routes/user');
+const utilsRoute = require('./routes/utils');
 
 app.use(morgan('dev'));
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -35,6 +36,7 @@ app.use((req, res, next) => {
 });
 
 app.use('/users', userRoute);
+app.use("/utils", utilsRoute);
 
 app.use('/public', express.static('public'));
 
