@@ -4,13 +4,18 @@ const app = express();
 const morgan = require('morgan');
 const bodyParser = require("body-parser");
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 
 const userRoute = require('./routes/user');
 
 app.use(morgan('dev'));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
-app.use(cors());
+app.use(cookieParser());
+app.use(cors({
+    origin: process.env.URL_SITE,
+    credentials: true
+}));
 require('dotenv').config();
 
 app.use((req, res, next) => {
@@ -29,7 +34,7 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use('/user', userRoute);
+app.use('/users', userRoute);
 
 app.use('/public', express.static('public'));
 

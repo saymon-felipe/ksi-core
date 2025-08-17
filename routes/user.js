@@ -4,23 +4,33 @@ const login = require("../middleware/login");
 const _usersService = require("../services/usersService");
 const functions = require("../utils/functions");
 
-// Criar um agendamento
-router.post("/", login, validate.validateRequest(validate.schemas.appointments.create), validate.validateCompanyAccess, (req, res, next) => {
-    _appointmentsService.create(
-        req.headers['selected-company'],
-        req.body.customer_id,
-        req.body.customer_name,
-        req.body.date,
-        req.body.duration,
-        req.body.observations,
-        req.body.services,
-        req.body.status
-    ).then(() => {
-        let response = functions.createResponse("Agendamento criado com sucesso", null, "POST", 200);
+router.post("/login", (req, res, next) => {
+    _usersService.login(req.body.token).then((results) => {
+        res.cookie('jwtToken', results.token, {
+            httpOnly: true, // Isso torna o cookie inacessível via JavaScript
+            secure: process.env.NODE_ENV === 'production', // Use 'secure' apenas em HTTPS
+            sameSite: 'strict', // Protege contra ataques CSRF
+            maxAge: 28800000 // Tempo de expiração do cookie em milissegundos (8 horas)
+        });
+
+        let response = functions.createResponse("Usuário autenticado com sucesso", results.user, "POST", 200);
         return res.status(200).send(response);
     }).catch((error) => {
+        console.log(error)
         return res.status(500).send(error);
     });
+});
+
+router.get("/", login, (req, res, next) => {
+    let response = functions.createResponse("Retorno do usuário", req.usuario, "GET", 200);
+    return res.status(200).send(response);
+})
+
+router.get('/logout', (req, res) => {
+  res.clearCookie('jwtToken');
+
+  let response = functions.createResponse("RLogout bem sucedido", null, "GET", 200);
+    return res.status(200).send(response);
 });
 
 module.exports = router;

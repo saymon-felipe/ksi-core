@@ -2,13 +2,21 @@ const jwt = require('jsonwebtoken');
 
 module.exports = (req, res, next) => {
     try {
-        const token = req.headers.authorization.split(" ")[1];
-        const decode = jwt.verify(token, process.env.JWT_KEY);
-        req.usuario = decode;
+        const token = req.cookies.jwtToken;
+
+        if (!token) {
+            return res.status(401).json({ message: 'Acesso não autorizado' });
+        }
         
-        next();
+        jwt.verify(token, process.env.JWT_KEY, (err, usuario) => {
+            if (err) {
+                return res.status(403).json({ message: 'Token inválido ou expirado' });
+            }
+            
+            req.usuario = usuario;
+            next();
+        });
     } catch (error) {
         return res.status(401).send({ mensagem: "Falha na verificação da autenticação" });
     }
-    
 }
