@@ -18,6 +18,25 @@ USE `ksi_db`;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
+-- Table structure for table `contatos_site`
+--
+
+DROP TABLE IF EXISTS `contatos_site`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `contatos_site` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `nome` varchar(255) NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `tel` varchar(255) NOT NULL,
+  `obs` varchar(5000) NOT NULL,
+  `tipo` varchar(100) NOT NULL,
+  `data` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `usuarios`
 --
 
@@ -31,20 +50,31 @@ CREATE TABLE `usuarios` (
   `data_registro` datetime NOT NULL DEFAULT current_timestamp(),
   `codigo` varchar(255) NOT NULL,
   `imagem` varchar(255) NOT NULL,
+  `admin` int(11) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   UNIQUE KEY `email` (`email`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `usuarios`
+-- Table structure for table `videos`
 --
 
-LOCK TABLES `usuarios` WRITE;
-/*!40000 ALTER TABLE `usuarios` DISABLE KEYS */;
-INSERT INTO `usuarios` VALUES (1,'LinnuBR','linnubr@gmail.com','2025-08-17 00:07:42','102449962796370703946','https://lh3.googleusercontent.com/a/ACg8ocI1KfVsrRl3ofF4PVLMY-Juxyo1FBS9eRhRVqIgy9x2615ycevt=s96-c');
-/*!40000 ALTER TABLE `usuarios` ENABLE KEYS */;
-UNLOCK TABLES;
+DROP TABLE IF EXISTS `videos`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `videos` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `titulo` varchar(100) NOT NULL,
+  `descricao` varchar(5000) NOT NULL,
+  `data_upload` datetime NOT NULL DEFAULT current_timestamp(),
+  `usuario` int(11) NOT NULL,
+  `video_url` varchar(255) NOT NULL,
+  `thumbnail_url` varchar(255) NOT NULL,
+  `codigo` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping events for database 'ksi_db'
@@ -63,4 +93,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-08-17  0:38:55
+-- Dump completed on 2025-08-21 23:38:42

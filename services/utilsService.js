@@ -34,6 +34,36 @@ let utilsService = {
                 reject("Ocorreu um erro ao enviar o contato");
             }
         })
+    },
+    uploadVideo: function (userId, title, description, thumbnailUrl, videoUrl) {
+        return new Promise((resolve, reject) => {
+            let videoId = videoUrl.split("-")[6].replace(".mp4", "");
+
+            functions.executeSql(
+                `
+                    INSERT INTO
+                        videos
+                        (
+                            titulo,
+                            descricao,
+                            usuario,
+                            video_url,
+                            thumbnail_url,
+                            codigo
+                        )
+                    VALUES
+                        (?, ?, ?, ?, ?, ?)
+                `, [title, description, userId, videoUrl, thumbnailUrl, videoId]
+            ).then((results) => {
+                if (results.affectedRows > 0) {
+                    resolve();
+                } else {
+                    reject("Ocorreu um erro ao enviar o video");
+                }
+            }).catch((error) => {
+                reject(error);
+            })
+        })
     }
 }
 
