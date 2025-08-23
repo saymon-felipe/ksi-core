@@ -56,6 +56,7 @@ let utilsService = {
                 `, [title, description, userId, videoUrl, thumbnailUrl, videoId]
             ).then((results) => {
                 if (results.affectedRows > 0) {
+                    this.returnVideos(true);
                     resolve();
                 } else {
                     reject("Ocorreu um erro ao enviar o video");
@@ -63,6 +64,273 @@ let utilsService = {
             }).catch((error) => {
                 reject(error);
             })
+        })
+    },
+    returnVideos: function (clearCache = false) {
+        return new Promise((resolve, reject) => {
+            functions.executeSql(
+                `
+                    SELECT
+                        v.id,
+                        v.thumbnail_url AS thumbnail,
+                        v.video_url AS video,
+                        v.descricao AS description,
+                        v.titulo AS title,
+                        v.data_upload AS date,
+                        v.usuario,
+                        v.visualizacoes,
+                        COUNT(CASE WHEN iv.tipo = 'like' THEN 1 END) AS likes,
+                        COUNT(CASE WHEN iv.tipo = 'dislike' THEN 1 END) AS dislikes
+                    FROM
+                        videos v
+                    LEFT JOIN
+                        interacoes_videos iv ON v.id = iv.video
+                    GROUP BY
+                        v.id,
+                        v.thumbnail_url,
+                        v.video_url,
+                        v.descricao,
+                        v.titulo,
+                        v.data_upload,
+                        v.usuario,
+                        v.visualizacoes
+                    ORDER BY v.id DESC
+                `, [], !clearCache
+            ).then(async (results) => {
+                let videos = [];
+
+                for (let i = 0; i < results.length; i++) {
+                    let currentVideo = results[i];
+
+                    currentVideo = {
+                        ...currentVideo,
+                        statistics: {
+                            views: results[i].visualizacoes,
+                            likes: results[i].likes
+                        },
+                        user: {
+                            image: await functions.getValueByColumn("usuarios", "imagem", currentVideo.usuario, "id"),
+                            name: await functions.getValueByColumn("usuarios", "nome", currentVideo.usuario, "id")
+                        }
+                    }
+
+                    videos.push(currentVideo);
+                }
+
+                resolve(videos);
+            })
+        }).catch((error) => {
+            reject(error);
+        })
+    },
+    viewVideo: function (video_id) {
+        return new Promise((resolve, reject) => {
+            functions.executeSql(
+                `
+                    UPDATE
+                        videos
+                    SET
+                        visualizacoes = visualizacoes + 1
+                    WHERE
+                        id = ?
+                `, [video_id]
+            ).then(() => {
+                resolve();
+            }).catch((error) => {
+                reject(error);
+            })
+        })
+    },
+    getVideoInteractionStatus: async function (userId, videoId) {
+        if (!userId || !videoId) {
+            return { liked: false, disliked: false };
+        }
+
+        try {
+            const interaction = await functions.executeSql(
+                `SELECT tipo FROM interacoes_videos WHERE usuario = ? AND video = ? LIMIT 1`,
+                [userId, videoId]
+            );
+
+            if (interaction.length > 0) {
+                const type = interaction[0].tipo;
+                return {
+                    liked: type === 'like',
+                    disliked: type === 'deslike'
+                };
+            } else {
+                return { liked: false, disliked: false };
+            }
+        } catch (error) {
+            return { liked: false, disliked: false };
+        }
+    },
+    returnVideoComments: function (video_id, clearCache = false) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const results = await functions.executeSql(
+                    `
+                        SELECT
+                            u.nome as userName,
+                            c.comentario,
+                            c.data,
+                            c.cor_background,
+                            c.id as commentId,
+                            u.id as userId,
+                            u.imagem AS userImage
+                        FROM
+                            comentarios_videos c
+                        JOIN
+                            usuarios u ON c.usuario = u.id
+                        WHERE
+                            c.video = ?
+                        ORDER BY
+                            c.data ASC
+                    `, [video_id], !clearCache
+                );
+
+                let videoComments = {
+                    length: 0,
+                    comments: []
+                };
+
+                if (results.length === 0) {
+                    resolve(videoComments);
+                    return;
+                }
+
+                let currentGroup = null;
+                let groupId = 0;
+
+                for (const comment of results) {
+                    if (currentGroup && currentGroup.userId === comment.userId) {
+                        currentGroup.comments.push({
+                            date: comment.data_publicacao,
+                            comment: comment.comentario,
+                            background: comment.cor_background
+                        });
+                    } else {
+                        currentGroup = {
+                            id: groupId,
+                            userName: comment.userName,
+                            userImage: comment.userImage,
+                            userId: comment.userId,
+                            comments: [
+                                {
+                                    date: comment.data_publicacao,
+                                    comment: comment.comentario,
+                                    background: comment.cor_background
+                                }
+                            ]
+                        };
+                        videoComments.comments.push(currentGroup);
+                        groupId++;
+                    }
+                }
+                
+                videoComments.length = results.length;
+                
+                resolve(videoComments);
+
+            } catch (error) {
+                reject(error);
+            }
+        });
+    },
+    postComment: function (video_id, user_id, comment) {
+        return new Promise(async (resolve, reject) => {
+            let cores_disponiveis = [
+                "rgba(255, 161, 249, 0.3)", // Rosa claro
+                "rgba(184, 193, 255, 0.3)", // Azul claro
+                "rgba(161, 255, 161, 0.3)", // Verde claro
+                "rgba(255, 255, 161, 0.3)", // Amarelo claro
+                "rgba(255, 182, 193, 0.3)", // Rosa salmão
+                "rgba(204, 153, 255, 0.3)", // Lilás
+                "rgba(152, 251, 152, 0.3)", // Verde menta
+                "rgba(173, 216, 230, 0.3)", // Azul celeste
+                "rgba(240, 230, 140, 0.3)", // Caqui
+                "rgba(255, 192, 203, 0.3)"  // Rosa bebê
+            ];
+
+            try {
+                let existingComment = await functions.executeSql(
+                    `SELECT cor_background FROM comentarios_videos WHERE usuario = ? AND video = ? LIMIT 1`,
+                    [user_id, video_id]
+                );
+                
+                let cor_para_inserir;
+
+                if (existingComment.length > 0) {
+                    cor_para_inserir = existingComment[0].cor_background;
+                } else {
+                    const randomIndex = Math.floor(Math.random() * cores_disponiveis.length);
+                    cor_para_inserir = cores_disponiveis[randomIndex];
+                }
+
+                const insertResult = await functions.executeSql(
+                    `
+                        INSERT INTO
+                            comentarios_videos
+                            (
+                                usuario,
+                                comentario,
+                                video,
+                                cor_background
+                            )
+                        VALUES
+                            (?, ?, ?, ?)
+                    `, [user_id, comment, video_id, cor_para_inserir]
+                );
+
+                if (insertResult.affectedRows > 0) {
+                    this.returnVideoComments(video_id, true);
+                    resolve();
+                } else {
+                    reject("Ocorreu um erro ao enviar o comentário");
+                }
+            } catch (error) {
+                reject(error);
+            }
+        })
+    },
+    toggleLikeDeslike: function (userId, videoId, interactionType) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const existingInteraction = await functions.executeSql(
+                    `SELECT tipo FROM interacoes_videos WHERE usuario = ? AND video = ?`,
+                    [userId, videoId]
+                );
+
+                if (existingInteraction.length > 0) {
+                    const existingType = existingInteraction[0].tipo;
+
+                    if (existingType === interactionType) {
+                        await functions.executeSql(
+                            `DELETE FROM interacoes_videos WHERE usuario = ? AND video = ? AND tipo = ?`,
+                            [userId, videoId, interactionType]
+                        );
+                    } 
+                    else {
+                        await functions.executeSql(
+                            `DELETE FROM interacoes_videos WHERE usuario = ? AND video = ? AND tipo = ?`,
+                            [userId, videoId, existingType]
+                        );
+                        await functions.executeSql(
+                            `INSERT INTO interacoes_videos (usuario, tipo, video) VALUES (?, ?, ?)`,
+                            [userId, interactionType, videoId]
+                        );
+                    }
+                } else {
+                    await functions.executeSql(
+                        `INSERT INTO interacoes_videos (usuario, tipo, video) VALUES (?, ?, ?)`,
+                        [userId, interactionType, videoId]
+                    );
+                }
+
+                resolve();
+            } catch (error) {
+                reject(error);
+            }
         })
     }
 }

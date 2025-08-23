@@ -28,7 +28,7 @@ router.get("/", login, (req, res, next) => {
 router.get('/logout', (req, res) => {
   res.clearCookie('jwtToken');
 
-  let response = functions.createResponse("RLogout bem sucedido", null, "GET", 200);
+  let response = functions.createResponse("Logout bem sucedido", null, "GET", 200);
     return res.status(200).send(response);
 });
 
