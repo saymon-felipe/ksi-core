@@ -8,8 +8,8 @@ router.post("/login", (req, res, next) => {
     _usersService.login(req.body.token).then((results) => {
         res.cookie('jwtToken', results.token, {
             httpOnly: true, // Isso torna o cookie inacessível via JavaScript
-            secure: process.env.NODE_ENV === 'production', // Use 'secure' apenas em HTTPS
-            sameSite: process.env.NODE_ENV === 'production' ? 'Lax' : 'strict',
+            secure: process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test', // Use 'secure' apenas em HTTPS
+            sameSite: process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test' ? 'Lax' : 'strict',
             maxAge: 28800000 // Tempo de expiração do cookie em milissegundos (8 horas)
         });
 
