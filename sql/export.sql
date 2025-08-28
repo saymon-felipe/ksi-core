@@ -1,5 +1,5 @@
-CREATE DATABASE  IF NOT EXISTS `ksi_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci */;
-USE `ksi_db`;
+CREATE DATABASE  IF NOT EXISTS `o3wlps41k9h11dp4` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci */;
+USE `o3wlps41k9h11dp4`;
 -- MySQL dump 10.13  Distrib 5.7.41, for Win32 (AMD64)
 --
 -- Host: localhost    Database: ksi_db

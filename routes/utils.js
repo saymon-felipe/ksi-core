@@ -34,6 +34,23 @@ router.post(
         });
 });
 
+router.patch(
+    "/videos/:id", 
+    login, 
+    isAdmin, 
+    uploadConfig.getUploadMiddleware(['thumbnail']),
+    (req, res, next) => {
+        const thumbnailFile = req.files['thumbnail'][0];
+        const thumbnailUrl = thumbnailFile.location;
+
+        _utilsService.editVideo(req.params.id, req.body.title, req.body.description, thumbnailUrl).then(() => {
+            let response = functions.createResponse("Video salvo com sucesso", null, "PATCH", 200);
+            return res.status(200).send(response);
+        }).catch((error) => {
+            return res.status(500).send(error);
+        });
+});
+
 router.get(
     "/get-videos",
     (req, res, next) => {
@@ -109,6 +126,19 @@ router.post(
     (req, res, next) => {
         _utilsService.toggleLikeDeslike(req.usuario.id, req.params.id, "deslike").then((results) => {
             let response = functions.createResponse("Não gostei realizado", null, "POST", 200);
+            return res.status(200).send(response);
+        }).catch((error) => {
+            return res.status(500).send(error);
+        });
+});
+
+router.delete(
+    "/videos/:id",
+    login,
+    isAdmin, 
+    (req, res, next) => {
+        _utilsService.excludeVideo(req.params.id).then(() => {
+            let response = functions.createResponse("Video excluido", null, "DELETE", 200);
             return res.status(200).send(response);
         }).catch((error) => {
             return res.status(500).send(error);

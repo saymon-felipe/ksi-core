@@ -1,6 +1,7 @@
 const functions = require("../utils/functions");
 const sendEmails = require("../config/sendEmail");
 const emailTemplates = require("../templates/emailTemplates");
+const uploadConfig = require("../config/upload");
 
 let utilsService = {
     sendContact: function (name, email, tel, obs, requestType, ip) {
@@ -66,10 +67,64 @@ let utilsService = {
             })
         })
     },
+    editVideo: function (videoId, title, description, thumbnailUrl) {
+        return new Promise((resolve, reject) => {
+            functions.executeSql(
+                `
+                    SELECT
+                        thumbnail_url
+                    FROM
+                        videos
+                    WHERE
+                        id = ?;
+
+                    UPDATE
+                        videos
+                    SET
+                        titulo = ?, descricao = ?, thumbnail_url = ?
+                    WHERE
+                        id = ?;
+                `, [videoId, title, description, thumbnailUrl, videoId]
+            ).then(async (results) => {
+                if (results[1].affectedRows > 0) {
+                    this.returnVideos(true);
+
+                    let thumbnail_url = results[0][0].thumbnail_url.split("/")[3];
+                    
+                    await uploadConfig.deleteFromS3(thumbnail_url);
+
+                    resolve();
+                } else {
+                    reject("Ocorreu um erro ao salvar o video");
+                }
+            }).catch((error) => {
+                reject(error);
+            })
+        })
+    },
     returnVideos: function (clearCache = false) {
         return new Promise((resolve, reject) => {
             functions.executeSql(
                 `
+                    WITH contagem_interacoes AS (
+                        SELECT
+                            video,
+                            COUNT(CASE WHEN tipo = 'like' THEN 1 END) AS likes,
+                            COUNT(CASE WHEN tipo = 'dislike' THEN 1 END) AS dislikes
+                        FROM
+                            interacoes_videos
+                        GROUP BY
+                            video
+                    ),
+                    contagem_comentarios AS (
+                        SELECT
+                            video,
+                            COUNT(id) AS comments
+                        FROM
+                            comentarios_videos
+                        GROUP BY
+                            video
+                    )
                     SELECT
                         v.id,
                         v.thumbnail_url AS thumbnail,
@@ -79,22 +134,16 @@ let utilsService = {
                         v.data_upload AS date,
                         v.usuario,
                         v.visualizacoes,
-                        COUNT(CASE WHEN iv.tipo = 'like' THEN 1 END) AS likes,
-                        COUNT(CASE WHEN iv.tipo = 'dislike' THEN 1 END) AS dislikes
+                        COALESCE(ci.likes, 0) AS likes,
+                        COALESCE(ci.dislikes, 0) AS dislikes,
+                        COALESCE(cc.comments, 0) AS comments
                     FROM
                         videos v
                     LEFT JOIN
-                        interacoes_videos iv ON v.id = iv.video
-                    GROUP BY
-                        v.id,
-                        v.thumbnail_url,
-                        v.video_url,
-                        v.descricao,
-                        v.titulo,
-                        v.data_upload,
-                        v.usuario,
-                        v.visualizacoes
-                    ORDER BY v.id DESC
+                        contagem_interacoes ci ON v.id = ci.video
+                    LEFT JOIN
+                        contagem_comentarios cc ON v.id = cc.video
+                    ORDER BY v.id DESC;
                 `, [], !clearCache
             ).then(async (results) => {
                 let videos = [];
@@ -106,7 +155,9 @@ let utilsService = {
                         ...currentVideo,
                         statistics: {
                             views: results[i].visualizacoes,
-                            likes: results[i].likes
+                            likes: results[i].likes,
+                            dislikes: results[i].dislikes,
+                            comments: results[i].comments
                         },
                         user: {
                             image: await functions.getValueByColumn("usuarios", "imagem", currentVideo.usuario, "id"),
@@ -205,7 +256,7 @@ let utilsService = {
                 for (const comment of results) {
                     if (currentGroup && currentGroup.userId === comment.userId) {
                         currentGroup.comments.push({
-                            date: comment.data_publicacao,
+                            date: comment.data,
                             comment: comment.comentario,
                             background: comment.cor_background
                         });
@@ -217,7 +268,7 @@ let utilsService = {
                             userId: comment.userId,
                             comments: [
                                 {
-                                    date: comment.data_publicacao,
+                                    date: comment.data,
                                     comment: comment.comentario,
                                     background: comment.cor_background
                                 }
@@ -331,6 +382,52 @@ let utilsService = {
             } catch (error) {
                 reject(error);
             }
+        })
+    },
+    excludeVideo: function (videoId) {
+        return new Promise((resolve, reject) => {
+            functions.executeSql(
+                `
+                    SELECT
+                        video_url,
+                        thumbnail_url
+                    FROM
+                        videos
+                    WHERE
+                        id = ?;
+
+                    DELETE FROM
+                        videos
+                    WHERE
+                        id = ?;
+
+                    DELETE FROM
+                        interacoes_videos
+                    WHERE
+                        video = ?;
+
+                    DELETE FROM
+                        comentarios_videos
+                    WHERE
+                        video = ?
+                `, [videoId, videoId, videoId, videoId]
+            ).then(async (results) => {
+                if (results[1].affectedRows == 0) {
+                    reject("Ocorreu um erro ao excluir o video");
+                } else {
+                    let video_url = results[0][0].video_url.split("/")[3];
+                    let thumbnail_url = results[0][0].thumbnail_url.split("/")[3];
+                    
+                    await uploadConfig.deleteFromS3(video_url);
+                    await uploadConfig.deleteFromS3(thumbnail_url);
+
+                    this.returnVideos(true);
+                    
+                    resolve();
+                }
+            }).catch((error) => {
+                reject(error);
+            })
         })
     }
 }
