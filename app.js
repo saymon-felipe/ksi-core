@@ -1,4 +1,3 @@
-
 const express = require('express');
 const app = express();
 const morgan = require('morgan');
@@ -6,21 +5,38 @@ const bodyParser = require("body-parser");
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 
+require('dotenv').config(); 
+
 const userRoute = require('./routes/user');
 const utilsRoute = require('./routes/utils');
+
+const allowedOrigins = process.env.ALLOWED_DOMAINS ? process.env.ALLOWED_DOMAINS.split(',') : [];
 
 app.use(morgan('dev'));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(cookieParser());
+
 app.use(cors({
-    origin: process.env.URL_SITE,
+    origin: function (origin, callback) {
+        if (!origin) return callback(null, true);
+        
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true
 }));
-require('dotenv').config();
 
 app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', process.env.URL_SITE);
+    const origin = req.headers.origin;
+    
+    if (allowedOrigins.includes(origin)) {
+        res.header('Access-Control-Allow-Origin', origin);
+    }
+
     res.header(
         'Access-Control-Allow-Headers',
         'Content-Type',
