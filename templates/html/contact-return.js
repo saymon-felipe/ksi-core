@@ -23,7 +23,7 @@ let template = `
                 </tr>
                 <tr>
                     <td align="center" style="padding:20px;">
-                    <a href="https://kineticsolutions.netlify.app" target="_blank" 
+                    <a href="https://kineticsolutions.com.br" target="_blank" 
                         style="display:inline-block; background:#101010; color:#F8F8F8; text-decoration:none; font-weight:bold; padding:14px 28px; border-radius:30px; font-size:14px; letter-spacing:0.5px;">
                         VISITAR SITE
                     </a>
