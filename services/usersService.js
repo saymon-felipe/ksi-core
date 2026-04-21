@@ -14,7 +14,7 @@ let userService = {
                     params: {
                         client_id: process.env.GOOGLE_CLIENT_ID,
                         client_secret: process.env.GOOGLE_CLIENT_SECRET,
-                        redirect_uri: process.env.URL_SITE,
+                        redirect_uri: "postmessage", 
                         grant_type: "authorization_code",
                         code: googleToken
                     }
@@ -27,29 +27,16 @@ let userService = {
                 });
 
                 const results = await functions.executeSql(
-                    `
-                        SELECT
-                            *
-                        FROM
-                            usuarios
-                        WHERE
-                            codigo = ?
-                    `, [userInfo.id]
-                )
+                    `SELECT * FROM usuarios WHERE codigo = ?`, [userInfo.id]
+                );
 
                 let userId = results[0]?.id;
 
                 if (results.length == 0) {
                     let insertedUser = await functions.executeSql(
-                        `
-                            INSERT INTO
-                                usuarios
-                                (codigo, nome, email, imagem)
-                            VALUES
-                                (?, ?, ?, ?)
-                        `, [userInfo.id, userInfo.given_name, userInfo.email, userInfo.picture]
-                    )
-
+                        `INSERT INTO usuarios (codigo, nome, email, imagem) VALUES (?, ?, ?, ?)`, 
+                        [userInfo.id, userInfo.given_name, userInfo.email, userInfo.picture]
+                    );
                     userId = insertedUser.insertId;
                 }
 
@@ -57,28 +44,28 @@ let userService = {
                     id: userId,
                     nome: userInfo.given_name,
                     email: userInfo.email,
-                    imagem: userInfo.picture
+                    imagem: userInfo.picture,
+                    admin: results[0]?.admin || 0
                 }, 
                 process.env.JWT_KEY,
-                {
-                    expiresIn: "8h"
-                })
+                { expiresIn: "8h" });
 
                 let returnObj = {
                     user: {
                         id: userId,
                         nome: userInfo.given_name,
                         email: userInfo.email,
-                        imagem: userInfo.picture
+                        imagem: userInfo.picture,
+                        admin: results[0]?.admin || 0
                     },
                     token: token
-                }
+                };
 
                 resolve(returnObj);     
             } catch (error) {
-                reject(error)
+                reject(error);
             }
-        })
+        });
     }
 }
 

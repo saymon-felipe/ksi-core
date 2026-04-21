@@ -4,9 +4,6 @@ const multer = require('multer');
 const sharp = require('sharp');
 const path = require('path');
 
-const imageWidth = 1280;
-
-// Configuração da AWS com a nova sintaxe da v3
 const s3Client = new S3Client({
     region: process.env.REGION,
     credentials: {
@@ -16,11 +13,10 @@ const s3Client = new S3Client({
 });
 
 const fileFilter = (req, file, cb) => {
-    // A lógica de filtro para imagens e vídeos
-    if (file.mimetype === "image/jpeg" || file.mimetype === 'image/jpg' || file.mimetype === 'image/png' || file.mimetype === 'video/mp4') {
+    if (file.mimetype.startsWith('image/') || file.mimetype === 'video/mp4') {
         cb(null, true);
     } else {
-        cb(null, false);
+        cb(new Error('Formato de arquivo não suportado'), false);
     }
 };
 
@@ -31,28 +27,46 @@ const upload = multer({
     fileFilter: fileFilter
 });
 
-// Middleware personalizado para fazer o upload com transformação
+// Middleware personalizado para fazer o upload com transformação e organização
 const customUploader = async (req, res, next) => {
     try {
+        if (!req.files) return next();
+
         const uploadPromises = Object.keys(req.files).map(async (fieldName) => {
             const file = req.files[fieldName][0];
             const extension = path.extname(file.originalname);
-            const fileName = new Date().toISOString() + '-' + Math.random().toString(36).substring(7) + extension;
+            
+            const baseFileName = new Date().toISOString() + '-' + Math.random().toString(36).substring(7) + extension;
+            const fileName = baseFileName.replace(/:/g, "_").replace(/ /g, "_");
 
-            let fileStream;
+            let fileStream = file.buffer;
 
-            // Redimensiona apenas se for a thumbnail
-            if (fieldName === 'thumbnail') {
-                fileStream = sharp(file.buffer).resize(imageWidth);
-            } else {
-                fileStream = file.buffer;
+            // 1. REDIMENSIONAMENTO E COMPRESSÃO 
+            if (file.mimetype.startsWith('image/')) {
+                fileStream = sharp(file.buffer)
+                    .resize({ width: 1200, withoutEnlargement: true }) // withoutEnlargement impede que imagens pequenas percam qualidade ao serem esticadas
+                    .jpeg({ quality: 80, force: false }) 
+                    .png({ quality: 80, force: false })
+                    .webp({ quality: 80, force: false });
             }
+
+            // 2. ORGANIZAÇÃO DE PASTAS S3 (posts/<ano>/<slug>/)
+            const year = new Date().getFullYear();
+            let folderPath = '';
+            
+            // Se vier o slug no body (como as imagens do editor do blog), organiza na pasta. 
+            // Caso contrário, salva na raiz ou outra pasta geral do S3.
+            if (req.body.slug) {
+                folderPath = `posts/${year}/${req.body.slug}/`;
+            }
+
+            const s3Key = `${folderPath}${fileName}`;
 
             const uploadToS3 = new Upload({
                 client: s3Client,
                 params: {
                     Bucket: process.env.BUCKET,
-                    Key: fileName.replace(":", "_").replace(":", "_").replace(" ", "_"),
+                    Key: s3Key,
                     Body: fileStream,
                     ContentType: file.mimetype,
                     ACL: 'public-read'
@@ -61,8 +75,8 @@ const customUploader = async (req, res, next) => {
 
             const data = await uploadToS3.done();
             
-            // Adiciona a URL do S3 ao objeto do arquivo na requisição
             file.location = data.Location;
+            file.s3Key = s3Key; 
 
             return data;
         });
@@ -75,12 +89,9 @@ const customUploader = async (req, res, next) => {
     }
 };
 
-// Nova função que cria e retorna o middleware de upload
 const getUploadMiddleware = (fieldNames) => {
-    // Mapeia os nomes dos campos para o formato que o Multer espera
     const fields = fieldNames.map(name => ({ name: name, maxCount: 1 }));
     
-    // Retorna um array de middlewares para serem encadeados na rota
     return [
         upload.fields(fields),
         customUploader

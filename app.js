@@ -9,6 +9,8 @@ require('dotenv').config();
 
 const userRoute = require('./routes/user');
 const utilsRoute = require('./routes/utils');
+const blogRoute = require('./routes/blog');
+const analyticsRoute = require('./routes/analytics');
 
 const allowedOrigins = process.env.ALLOWED_DOMAINS ? process.env.ALLOWED_DOMAINS.split(',') : [];
 
@@ -53,6 +55,8 @@ app.use((req, res, next) => {
 
 app.use('/users', userRoute);
 app.use("/utils", utilsRoute);
+app.use('/blog', blogRoute);
+app.use('/analytics', analyticsRoute);
 
 app.use('/public', express.static('public'));
 
