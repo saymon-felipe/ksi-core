@@ -6,6 +6,8 @@ const login = require('../middleware/login');
 const blogService = require('../services/blogService');
 const functions = require('../utils/functions');
 
+const aiJobs = new Map();
+
 router.post('/upload-editor', login, isAdmin, uploadConfig.getUploadMiddleware(['upload']), async (req, res) => {
     try {
         if (!req.files || !req.files['upload']) {
@@ -22,17 +24,54 @@ router.post('/upload-editor', login, isAdmin, uploadConfig.getUploadMiddleware([
     }
 });
 
-router.post('/ai-copywriter', login, isAdmin, async (req, res) => {
+router.post('/ai-copywriter', login, isAdmin, (req, res) => {
     try {
         const { prompt } = req.body;
-        const generatedText = await blogService.generateAIText(prompt);
+        const jobId = Date.now().toString();
         
-        let response = functions.createResponse("Texto gerado com sucesso", generatedText, "POST", 200);
-        return res.status(200).send(response);
+        aiJobs.set(jobId, { status: 'processing', result: null, error: null });
+
+        blogService.generateAIText(prompt)
+            .then(generatedText => {
+                aiJobs.set(jobId, { status: 'completed', result: generatedText });
+            })
+            .catch(error => {
+                console.error("Erro no processamento background da IA:", error);
+                aiJobs.set(jobId, { status: 'error', error: error.message || error });
+            });
+        
+        let response = functions.createResponse("Processamento iniciado", { jobId }, "POST", 202);
+        return res.status(202).send(response);
     } catch (error) {
-        let response = functions.createResponse("Erro ao gerar texto com IA", error.message || error, "POST", 500);
+        let response = functions.createResponse("Erro ao iniciar IA", error.message || error, "POST", 500);
         return res.status(500).send(response);
     }
+});
+
+router.get('/ai-copywriter/status/:jobId', login, isAdmin, (req, res) => {
+    const job = aiJobs.get(req.params.jobId);
+
+    if (!job) {
+        let response = functions.createResponse("Job não encontrado", null, "GET", 404);
+        return res.status(404).send(response);
+    }
+
+    if (job.status === 'completed') {
+        const data = job.result;
+        aiJobs.delete(req.params.jobId); 
+        let response = functions.createResponse("Texto gerado com sucesso", data, "GET", 200);
+        return res.status(200).send(response);
+    }
+
+    if (job.status === 'error') {
+        const err = job.error;
+        aiJobs.delete(req.params.jobId); 
+        let response = functions.createResponse("Erro na IA", err, "GET", 500);
+        return res.status(500).send(response);
+    }
+
+    let response = functions.createResponse("Processando", { status: 'processing' }, "GET", 200);
+    return res.status(200).send(response);
 });
 
 router.post('/posts', login, isAdmin, async (req, res) => {
