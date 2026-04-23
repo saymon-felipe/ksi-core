@@ -183,4 +183,77 @@ router.delete('/categorias/:id', login, isAdmin, async (req, res) => {
     }
 });
 
+router.get('/posts/:id/comentarios', async (req, res) => {
+    try {
+        const comentarios = await blogService.getComentarios(req.params.id);
+        res.status(200).send(functions.createResponse("Sucesso", comentarios, "GET", 200));
+    } catch (error) {
+        res.status(500).send(functions.createResponse("Erro", error, "GET", 500));
+    }
+});
+
+router.post('/posts/:id/comentarios', login, async (req, res) => {
+    try {
+        const { comentario } = req.body;
+        await blogService.addComentario(req.params.id, req.usuario.id, comentario);
+        res.status(201).send(functions.createResponse("Comentário adicionado", null, "POST", 201));
+    } catch (error) {
+        res.status(500).send(functions.createResponse("Erro", error, "POST", 500));
+    }
+});
+
+router.get('/posts/:id/interacoes', async (req, res) => {
+    try {
+        let userId = null;
+        if (req.cookies && req.cookies.jwtToken) {
+            const jwt = require('jsonwebtoken');
+            try {
+                const decoded = jwt.verify(req.cookies.jwtToken, process.env.JWT_KEY);
+                userId = decoded.id;
+            } catch (e) {}
+        }
+        
+        const interacoes = await blogService.getInteracoesResumo(req.params.id, userId);
+        res.status(200).send(functions.createResponse("Sucesso", interacoes, "GET", 200));
+    } catch (error) {
+        res.status(500).send(functions.createResponse("Erro", error, "GET", 500));
+    }
+});
+
+router.post('/posts/:id/like', login, async (req, res) => {
+    try {
+        const result = await blogService.toggleLike(req.params.id, req.usuario.id);
+        res.status(200).send(functions.createResponse("Sucesso", result, "POST", 200));
+    } catch (error) {
+        res.status(500).send(functions.createResponse("Erro", error, "POST", 500));
+    }
+});
+
+router.post('/posts/:id/share', async (req, res) => {
+    try {
+        await blogService.addCompartilhamento(req.params.id);
+        res.status(200).send(functions.createResponse("Sucesso", null, "POST", 200));
+    } catch (error) {
+        res.status(500).send(functions.createResponse("Erro", error, "POST", 500));
+    }
+});
+
+router.get('/admin/comentarios', login, isAdmin, async (req, res) => {
+    try {
+        const comentarios = await blogService.getAllComentariosAdmin();
+        res.status(200).send(functions.createResponse("Sucesso", comentarios, "GET", 200));
+    } catch (error) {
+        res.status(500).send(functions.createResponse("Erro", error, "GET", 500));
+    }
+});
+
+router.delete('/admin/comentarios/:id', login, isAdmin, async (req, res) => {
+    try {
+        await blogService.deleteComentario(req.params.id);
+        res.status(200).send(functions.createResponse("Comentário deletado", null, "DELETE", 200));
+    } catch (error) {
+        res.status(500).send(functions.createResponse("Erro", error, "DELETE", 500));
+    }
+});
+
 module.exports = router;

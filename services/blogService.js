@@ -174,25 +174,6 @@ let blogService = {
     });
   },
 
-  getAllPosts: function () {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const query = `
-          SELECT p.*, c.nome as categoria_nome, u.nome as autor_nome 
-          FROM blog_posts p 
-          INNER JOIN blog_categorias c ON p.categoria_id = c.id 
-          INNER JOIN usuarios u ON p.autor_id = u.id 
-          ORDER BY p.data_publicacao DESC, p.id DESC
-        `;
-
-        let results = await functions.executeSql(query, []);
-        resolve(results);
-      } catch (error) {
-        reject(error);
-      }
-    });
-  },
-
   getPostById: function (id) {
     return new Promise(async (resolve, reject) => {
       try {
@@ -299,6 +280,103 @@ let blogService = {
       }
     });
   },
+
+  getComentarios: function (postId) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const query = `
+          SELECT c.*, u.nome, u.imagem 
+          FROM blog_comentarios c 
+          INNER JOIN usuarios u ON c.usuario_id = u.id 
+          WHERE c.post_id = ? 
+          ORDER BY c.data DESC
+        `;
+        resolve(await functions.executeSql(query, [postId]));
+      } catch (error) { reject(error); }
+    });
+  },
+
+  addComentario: function (postId, usuarioId, comentario) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const result = await functions.executeSql(
+          "INSERT INTO blog_comentarios (post_id, usuario_id, comentario) VALUES (?, ?, ?)",
+          [postId, usuarioId, comentario]
+        );
+        resolve(result.insertId);
+      } catch (error) { reject(error); }
+    });
+  },
+
+  getAllComentariosAdmin: function () {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const query = `
+          SELECT c.*, p.titulo as post_titulo, u.nome, u.email 
+          FROM blog_comentarios c 
+          INNER JOIN blog_posts p ON c.post_id = p.id
+          INNER JOIN usuarios u ON c.usuario_id = u.id 
+          ORDER BY c.data DESC
+        `;
+        resolve(await functions.executeSql(query, []));
+      } catch (error) { reject(error); }
+    });
+  },
+
+  deleteComentario: function (id) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        await functions.executeSql("DELETE FROM blog_comentarios WHERE id = ?", [id]);
+        resolve(true);
+      } catch (error) { reject(error); }
+    });
+  },
+
+  toggleLike: function (postId, usuarioId) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const existe = await functions.executeSql("SELECT id FROM blog_interacoes WHERE post_id = ? AND usuario_id = ? AND tipo = 'like'", [postId, usuarioId]);
+        
+        if (existe.length > 0) {
+          await functions.executeSql("DELETE FROM blog_interacoes WHERE id = ?", [existe[0].id]);
+          resolve({ status: 'removido' });
+        } else {
+          await functions.executeSql("INSERT INTO blog_interacoes (post_id, usuario_id, tipo) VALUES (?, ?, 'like')", [postId, usuarioId]);
+          resolve({ status: 'adicionado' });
+        }
+      } catch (error) { reject(error); }
+    });
+  },
+
+  getInteracoesResumo: function (postId, usuarioId = null) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const likes = await functions.executeSql("SELECT COUNT(*) as total FROM blog_interacoes WHERE post_id = ? AND tipo = 'like'", [postId]);
+        const postInfo = await functions.executeSql("SELECT compartilhamentos FROM blog_posts WHERE id = ?", [postId]);
+        
+        let userLiked = false;
+        if (usuarioId) {
+          const uLike = await functions.executeSql("SELECT id FROM blog_interacoes WHERE post_id = ? AND usuario_id = ? AND tipo = 'like'", [postId, usuarioId]);
+          userLiked = uLike.length > 0;
+        }
+
+        resolve({
+          likes: likes[0].total || 0,
+          compartilhamentos: postInfo[0]?.compartilhamentos || 0,
+          userLiked: userLiked
+        });
+      } catch (error) { reject(error); }
+    });
+  },
+
+  addCompartilhamento: function (postId) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        await functions.executeSql("UPDATE blog_posts SET compartilhamentos = compartilhamentos + 1 WHERE id = ?", [postId]);
+        resolve(true);
+      } catch (error) { reject(error); }
+    });
+  }
 };
 
 module.exports = blogService;

@@ -21,26 +21,46 @@ router.post("/google-login", (req, res, next) => {
     });
 });
 
-router.get("/", login, (req, res, next) => {
-    let token = jwt.sign({
-        id: req.usuario.id,
-        nome: req.usuario.nome,
-        email: req.usuario.email,
-        imagem: req.usuario.imagem,
-        admin: req.usuario.admin || 0
-    }, 
-    process.env.JWT_KEY,
-    { expiresIn: "8h" });
+router.get("/", login, async (req, res, next) => {
+    try {
+        const results = await functions.executeSql('SELECT * FROM usuarios WHERE id = ?', [req.usuario.id]);
+        
+        if (results.length === 0) {
+            return res.status(404).send(functions.createResponse("Usuário não encontrado", null, "GET", 404));
+        }
 
-    res.cookie('jwtToken', token, {
-        httpOnly: true, 
-        secure: true,
-        sameSite: 'None',
-        maxAge: 28800000
-    });
+        const dbUser = results[0];
 
-    let response = functions.createResponse("Retorno do usuário", req.usuario, "GET", 200);
-    return res.status(200).send(response);
+        let token = jwt.sign({
+            id: dbUser.id,
+            nome: dbUser.nome,
+            email: dbUser.email,
+            imagem: dbUser.imagem,
+            admin: dbUser.admin || 0
+        }, 
+        process.env.JWT_KEY,
+        { expiresIn: "8h" });
+
+        res.cookie('jwtToken', token, {
+            httpOnly: true, 
+            secure: true,
+            sameSite: 'None',
+            maxAge: 28800000
+        });
+
+        let returnObj = {
+            id: dbUser.id,
+            nome: dbUser.nome,
+            email: dbUser.email,
+            imagem: dbUser.imagem,
+            admin: dbUser.admin || 0
+        };
+
+        let response = functions.createResponse("Retorno do usuário", returnObj, "GET", 200);
+        return res.status(200).send(response);
+    } catch (error) {
+        return res.status(500).send(functions.createResponse("Erro ao buscar usuário", error, "GET", 500));
+    }
 });
 
 router.get('/logout', (req, res) => {
