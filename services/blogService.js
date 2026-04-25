@@ -150,7 +150,12 @@ let blogService = {
     return new Promise(async (resolve, reject) => {
       try {
         const query = `
-          SELECT p.*, c.nome as categoria_nome, u.nome as autor_nome 
+          SELECT 
+            p.*, 
+            c.nome as categoria_nome, 
+            u.nome as autor_nome,
+            (SELECT COUNT(*) FROM blog_comentarios WHERE post_id = p.id) as comentarios_count,
+            (SELECT COUNT(*) FROM blog_interacoes WHERE post_id = p.id AND tipo = 'like') as likes_count
           FROM blog_posts p 
           INNER JOIN blog_categorias c ON p.categoria_id = c.id 
           INNER JOIN usuarios u ON p.autor_id = u.id 

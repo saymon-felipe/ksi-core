@@ -192,7 +192,7 @@ CREATE TABLE `login_history` (
   PRIMARY KEY (`id`),
   KEY `usuario_id` (`usuario_id`),
   CONSTRAINT `1` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -214,8 +214,16 @@ CREATE TABLE `site_analytics` (
   `country` varchar(100) DEFAULT NULL,
   `region` varchar(100) DEFAULT NULL,
   `city` varchar(100) DEFAULT NULL,
+  `user_agent` varchar(500) DEFAULT NULL,
+  `device_type` varchar(50) DEFAULT NULL,
+  `browser` varchar(50) DEFAULT NULL,
+  `os` varchar(50) DEFAULT NULL,
+  `duration_seconds` int(11) DEFAULT 0,
+  `max_scroll_percentage` int(11) DEFAULT 0,
+  `clicks_data` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`clicks_data`)),
+  `quadrant_data` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`quadrant_data`)),
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=62 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=67 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -278,4 +286,4 @@ CREATE TABLE `videos` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-04-23  0:22:48
+-- Dump completed on 2026-04-25  2:00:15

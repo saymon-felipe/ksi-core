@@ -16,7 +16,6 @@ router.post('/track', async (req, res) => {
         }
 
         let geoData = { country: null, regionName: null, city: null };
-        
         let isLocal = clientIp === '::1' || clientIp === '127.0.0.1' || clientIp.startsWith('192.168.');
         
         if (!isLocal && clientIp) {
@@ -25,12 +24,46 @@ router.post('/track', async (req, res) => {
                 if (geoRes.data.status === 'success') {
                     geoData = geoRes.data;
                 }
-            } catch (e) {
-                console.error("Erro ao buscar geolocalização do IP:", e.message);
-            }
+            } catch (e) {}
         }
 
-        await analyticsService.trackVisit(req.body, clientIp, geoData);
+        const userAgent = req.headers['user-agent'] || '';
+        const deviceType = /Mobile|Android|iP(hone|od|ad)/i.test(userAgent) ? 'Mobile' : 'Desktop';
+        
+        let browser = 'Unknown';
+        if (userAgent.includes('Firefox')) browser = 'Firefox';
+        else if (userAgent.includes('SamsungBrowser')) browser = 'Samsung Internet';
+        else if (userAgent.includes('Opera') || userAgent.includes('OPR')) browser = 'Opera';
+        else if (userAgent.includes('Edg')) browser = 'Edge';
+        else if (userAgent.includes('Chrome')) browser = 'Chrome';
+        else if (userAgent.includes('Safari')) browser = 'Safari';
+
+        let os = 'Unknown';
+        if (userAgent.includes('Win')) os = 'Windows';
+        else if (userAgent.includes('Mac')) os = 'MacOS';
+        else if (userAgent.includes('Linux')) os = 'Linux';
+        else if (userAgent.includes('Android')) os = 'Android';
+        else if (userAgent.includes('like Mac')) os = 'iOS';
+
+        const clientData = {
+            ...req.body,
+            user_agent: userAgent,
+            device_type: deviceType,
+            browser: browser,
+            os: os
+        };
+
+        await analyticsService.trackVisit(clientData, clientIp, geoData);
+        res.status(200).send({ success: true });
+    } catch (error) {
+        res.status(500).send({ success: false });
+    }
+});
+
+router.post('/metrics', async (req, res) => {
+    try {
+        const { session_id, page_url, duration, maxScroll, clicks, quadrants } = req.body;
+        await analyticsService.updateEngagementMetrics(session_id, page_url, duration, maxScroll, clicks, quadrants);
         res.status(200).send({ success: true });
     } catch (error) {
         res.status(500).send({ success: false });
@@ -39,11 +72,12 @@ router.post('/track', async (req, res) => {
 
 router.get('/dashboard', login, isAdmin, async (req, res) => {
     try {
-        const stats = await analyticsService.getDashboardStats();
+        const { periodo, cidade } = req.query; 
+        const stats = await analyticsService.getDashboardStats(periodo, cidade);
         let response = functions.createResponse("Métricas carregadas", stats, "GET", 200);
         return res.status(200).send(response);
     } catch (error) {
-        let response = functions.createResponse("Erro ao carregar métricas", error.message || error, "GET", 500);
+        let response = functions.createResponse("Erro ao carregar métricas", error.message, "GET", 500);
         return res.status(500).send(response);
     }
 });
