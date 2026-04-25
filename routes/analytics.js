@@ -62,10 +62,15 @@ router.post('/track', async (req, res) => {
 
 router.post('/metrics', async (req, res) => {
     try {
-        const { session_id, page_url, duration, maxScroll, clicks, quadrants } = req.body;
+        const payload = req.body.data ? JSON.parse(req.body.data) : req.body;
+
+        const { session_id, page_url, duration, maxScroll, clicks, quadrants } = payload;
+        
         await analyticsService.updateEngagementMetrics(session_id, page_url, duration, maxScroll, clicks, quadrants);
+        
         res.status(200).send({ success: true });
     } catch (error) {
+        console.error("Erro ao salvar métricas:", error);
         res.status(500).send({ success: false });
     }
 });
