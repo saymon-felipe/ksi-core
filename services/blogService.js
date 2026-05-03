@@ -126,12 +126,10 @@ let blogService = {
 
         let results = await functions.executeSql(query, []);
 
-        // Lógica: Extrai a primeira imagem do HTML ou usa a padrão
         results = results.map((post) => {
           if (!post.imagem_capa && post.conteudo) {
             const match = post.conteudo.match(/<img[^>]+src="([^">]+)"/i);
-            // Se achar a imagem, pega a URL (match[1]). Se não, usa uma imagem padrão sua
-            post.imagem_capa = match ? match[1] : "/img/ksi-bg-padrao.jpg"; // <-- Altere para o nome da sua imagem padrão
+            post.imagem_capa = match ? match[1] : ""; 
           }
           return post;
         });
@@ -183,6 +181,12 @@ let blogService = {
           "SELECT * FROM blog_posts WHERE id = ?",
           [id],
         );
+
+        if (!post.imagem_capa && post.conteudo) {
+          const match = post.conteudo.match(/<img[^>]+src="([^">]+)"/i);
+          post.imagem_capa = match ? match[1] : ""; 
+        }
+
         resolve(result[0] || null);
       } catch (error) {
         reject(error);
@@ -208,6 +212,11 @@ let blogService = {
         }
 
         const post = result[0];
+
+        if (!post.imagem_capa && post.conteudo) {
+          const match = post.conteudo.match(/<img[^>]+src="([^">]+)"/i);
+          post.imagem_capa = match ? match[1] : ""; 
+        }
 
         if (clientIp) {
           const checkViewQuery = `
