@@ -13,7 +13,6 @@ let blogService = {
             content: `
                 Você é um Tech Lead e Copywriter sênior da Kinetic Solutions (KSI).
                 Sua missão é escrever um artigo de blog técnico, inovador, engajador mas ao mesmo tempo acessível e de linguagem simplificada para o público baseado no tema fornecido.
-
                 Diretrizes de Estética e Tom de Voz:
                 1. Tom: Autoritário, vanguardista, acessível e focado no futuro (soluções, eficiência, inovação).
                 2. Estrutura: Use parágrafos curtos, subtítulos em <h2> ou <h3>, e listas (bullet points) para escaneabilidade.
@@ -22,6 +21,7 @@ let blogService = {
                 {
                 "titulo": "Título Altamente Clicável e Otimizado (SEO)",
                 "descricao": "Uma breve descrição de até 150 caracteres otimizada para SEO e resumo do post.",
+                "keywords": "palavra-chave 1, palavra-chave 2, palavra-chave 3",
                 "conteudo": "Todo o conteúdo do post formatado em HTML limpo (h2, p, ul, li, strong)."
                 }
                 `,
@@ -34,9 +34,8 @@ let blogService = {
           Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
           "Content-Type": "application/json",
         },
-      },
+      }
     );
-
     return response.data.choices[0].message.content;
   },
 
@@ -45,23 +44,22 @@ let blogService = {
       try {
         const query = `
           INSERT INTO blog_posts 
-          (categoria_id, autor_id, titulo, slug, descricao, conteudo, imagem_capa, data_publicacao, data_pausa, status) 
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           (categoria_id, autor_id, titulo, slug, descricao, keywords, conteudo, imagem_capa, data_publicacao, data_pausa, status) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
-
         const values = [
           postData.categoria_id,
           autorId,
           postData.titulo,
           postData.slug,
           postData.descricao || "",
+          postData.keywords || "",
           postData.conteudo,
           postData.imagem_capa || null,
           postData.data_publicacao,
           postData.data_pausa || null,
           postData.status || "rascunho",
         ];
-
         let result = await functions.executeSql(query, values);
         resolve(result.insertId);
       } catch (error) {
@@ -75,17 +73,17 @@ let blogService = {
       try {
         const query = `
           UPDATE blog_posts SET 
-          categoria_id = ?, titulo = ?, slug = ?, descricao = ?, 
-          conteudo = ?, imagem_capa = ?, data_publicacao = ?, 
-          data_pausa = ?, status = ? 
-          WHERE id = ?
+           categoria_id = ?, titulo = ?, slug = ?, descricao = ?, keywords = ?,
+           conteudo = ?, imagem_capa = ?, data_publicacao = ?, 
+           data_pausa = ?, status = ? 
+           WHERE id = ?
         `;
-
         const values = [
           postData.categoria_id,
           postData.titulo,
           postData.slug,
           postData.descricao,
+          postData.keywords,
           postData.conteudo,
           postData.imagem_capa || null,
           postData.data_publicacao,
@@ -93,7 +91,6 @@ let blogService = {
           postData.status,
           id,
         ];
-
         await functions.executeSql(query, values);
         resolve(true);
       } catch (error) {
