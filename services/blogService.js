@@ -182,9 +182,9 @@ let blogService = {
           [id],
         );
 
-        if (!post.imagem_capa && post.conteudo) {
-          const match = post.conteudo.match(/<img[^>]+src="([^">]+)"/i);
-          post.imagem_capa = match ? match[1] : ""; 
+        if (!result[0].imagem_capa && result[0].conteudo) {
+          const match = result[0].conteudo.match(/<img[^>]+src="([^">]+)"/i);
+          result[0].imagem_capa = match ? match[1] : ""; 
         }
 
         resolve(result[0] || null);
