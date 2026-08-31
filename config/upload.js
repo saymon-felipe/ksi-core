@@ -34,20 +34,20 @@ const customUploader = async (req, res, next) => {
 
         const uploadPromises = Object.keys(req.files).map(async (fieldName) => {
             const file = req.files[fieldName][0];
-            const extension = path.extname(file.originalname);
+            let extension = path.extname(file.originalname);
             
-            const baseFileName = new Date().toISOString() + '-' + Math.random().toString(36).substring(7) + extension;
-            const fileName = baseFileName.replace(/:/g, "_").replace(/ /g, "_");
-
             let fileStream = file.buffer;
+            let contentType = file.mimetype;
 
             // 1. REDIMENSIONAMENTO E COMPRESSÃO 
             if (file.mimetype.startsWith('image/')) {
-                fileStream = sharp(file.buffer)
-                    .resize({ width: 1200, withoutEnlargement: true }) // withoutEnlargement impede que imagens pequenas percam qualidade ao serem esticadas
-                    .jpeg({ quality: 80, force: false }) 
-                    .png({ quality: 80, force: false })
-                    .webp({ quality: 80, force: false });
+                fileStream = await sharp(file.buffer)
+                    .rotate()
+                    .resize({ width: 1200, withoutEnlargement: true })
+                    .webp({ quality: 80 })
+                    .toBuffer();
+                extension = '.webp';
+                contentType = 'image/webp';
             }
 
             // 2. ORGANIZAÇÃO DE PASTAS S3 (posts/<ano>/<slug>/)
@@ -56,9 +56,14 @@ const customUploader = async (req, res, next) => {
             
             // Se vier o slug no body (como as imagens do editor do blog), organiza na pasta. 
             // Caso contrário, salva na raiz ou outra pasta geral do S3.
-            if (req.body.slug) {
+            if (req.uploadFolder) {
+                folderPath = `${req.uploadFolder}/${year}/`;
+            } else if (req.body.slug) {
                 folderPath = `posts/${year}/${req.body.slug}/`;
             }
+
+            const baseFileName = new Date().toISOString() + '-' + Math.random().toString(36).substring(7) + extension;
+            const fileName = baseFileName.replace(/:/g, "_").replace(/ /g, "_");
 
             const s3Key = `${folderPath}${fileName}`;
 
@@ -68,7 +73,7 @@ const customUploader = async (req, res, next) => {
                     Bucket: process.env.BUCKET,
                     Key: s3Key,
                     Body: fileStream,
-                    ContentType: file.mimetype,
+                    ContentType: contentType,
                     ACL: 'public-read'
                 }
             });
@@ -89,10 +94,14 @@ const customUploader = async (req, res, next) => {
     }
 };
 
-const getUploadMiddleware = (fieldNames) => {
+const getUploadMiddleware = (fieldNames, folderName = null) => {
     const fields = fieldNames.map(name => ({ name: name, maxCount: 1 }));
     
     return [
+        (req, res, next) => {
+            req.uploadFolder = folderName;
+            next();
+        },
         upload.fields(fields),
         customUploader
     ];
