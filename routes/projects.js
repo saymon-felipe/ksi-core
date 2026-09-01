@@ -4,6 +4,7 @@ const login = require('../middleware/login');
 const isAdmin = require('../middleware/isAdmin');
 const uploadConfig = require('../config/upload');
 const projectsService = require('../services/projectsService');
+const projectCopyService = require('../services/projectCopyService');
 const functions = require('../utils/functions');
 
 const getImage = (req) => req.files && req.files.image ? req.files.image[0] : null;
@@ -117,6 +118,23 @@ router.put('/admin/reorder', login, isAdmin, async (req, res) => {
         return res.status(200).send(functions.createResponse('Ordem dos projetos atualizada', null, 'PUT', 200));
     } catch (error) {
         return res.status(400).send(functions.createResponse('Erro ao reordenar projetos', error.message || error, 'PUT', 400));
+    }
+});
+
+router.post('/generate-descriptions', login, isAdmin, async (req, res) => {
+    try {
+        const descriptions = await projectCopyService.generateDescriptions(req.body);
+        return res.status(200).send(functions.createResponse('Descrições geradas com sucesso', descriptions, 'POST', 200));
+    } catch (error) {
+        const providerMessage = error.response?.data?.error?.message;
+        console.error('Erro ao gerar descrições de projeto com IA:', providerMessage || error.message || error);
+        const isValidationError = !error.response && !error.request;
+        return res.status(isValidationError ? 400 : 502).send(functions.createResponse(
+            isValidationError ? error.message : 'Não foi possível gerar as descrições com IA.',
+            null,
+            'POST',
+            isValidationError ? 400 : 502
+        ));
     }
 });
 
