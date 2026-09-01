@@ -6,13 +6,16 @@ const isAdmin = require("../middleware/isAdmin");
 const login = require("../middleware/login");
 const uploadConfig = require('../config/upload');
 
-router.post("/contact", (req, res, next) => {
-    _utilsService.sendContact(req.body.name, req.body.email, req.body.tel, req.body.obs, req.body.requestType, req.ip).then(() => {
-        let response = functions.createResponse("Contato enviado com sucesso", null, "POST", 200);
+router.post("/contact", async (req, res) => {
+    const locale = ['pt-BR', 'en', 'es'].includes(req.body.locale) ? req.body.locale : req.locale;
+    try {
+        await _utilsService.sendContact(req.body.name, req.body.email, req.body.tel, req.body.obs, req.body.requestType, req.ip, locale);
+        let response = functions.createResponse(req.t('api.contactSent'), null, "POST", 200);
         return res.status(200).send(response);
-    }).catch((error) => {
-        return res.status(500).send(error);
-    });
+    } catch (error) {
+        console.error('Falha ao enviar o contato por e-mail:', error.code || error.message || error);
+        return res.status(500).send(functions.createResponse(req.t('api.contactFailed'), null, "POST", 500));
+    }
 });
 
 router.post(

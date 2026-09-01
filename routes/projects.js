@@ -8,6 +8,81 @@ const functions = require('../utils/functions');
 
 const getImage = (req) => req.files && req.files.image ? req.files.image[0] : null;
 
+// ================= ROTAS DE CATEGORIAS =================
+router.get('/categories', async (req, res) => {
+    try {
+        const categories = await projectsService.getCategories();
+        return res.status(200).send(functions.createResponse('Categorias recuperadas com sucesso', categories, 'GET', 200));
+    } catch (error) {
+        return res.status(500).send(functions.createResponse('Erro ao buscar categorias', error.message || error, 'GET', 500));
+    }
+});
+
+router.post('/categories', login, isAdmin, async (req, res) => {
+    try {
+        const category = await projectsService.createCategory(req.body);
+        return res.status(201).send(functions.createResponse('Categoria criada com sucesso', category, 'POST', 201));
+    } catch (error) {
+        return res.status(400).send(functions.createResponse('Erro ao criar categoria', error.message || error, 'POST', 400));
+    }
+});
+
+router.put('/categories/:id', login, isAdmin, async (req, res) => {
+    try {
+        const category = await projectsService.updateCategory(req.params.id, req.body);
+        return res.status(200).send(functions.createResponse('Categoria atualizada com sucesso', category, 'PUT', 200));
+    } catch (error) {
+        return res.status(400).send(functions.createResponse('Erro ao atualizar categoria', error.message || error, 'PUT', 400));
+    }
+});
+
+router.delete('/categories/:id', login, isAdmin, async (req, res) => {
+    try {
+        await projectsService.deleteCategory(req.params.id);
+        return res.status(200).send(functions.createResponse('Categoria excluída com sucesso', null, 'DELETE', 200));
+    } catch (error) {
+        return res.status(400).send(functions.createResponse('Erro ao excluir categoria', error.message || error, 'DELETE', 400));
+    }
+});
+
+// ================= ROTAS DE TAGS =================
+router.get('/tags', async (req, res) => {
+    try {
+        const tags = await projectsService.getTags();
+        return res.status(200).send(functions.createResponse('Tags recuperadas com sucesso', tags, 'GET', 200));
+    } catch (error) {
+        return res.status(500).send(functions.createResponse('Erro ao buscar tags', error.message || error, 'GET', 500));
+    }
+});
+
+router.post('/tags', login, isAdmin, async (req, res) => {
+    try {
+        const tag = await projectsService.createTag(req.body);
+        return res.status(201).send(functions.createResponse('Tag criada com sucesso', tag, 'POST', 201));
+    } catch (error) {
+        return res.status(400).send(functions.createResponse('Erro ao criar tag', error.message || error, 'POST', 400));
+    }
+});
+
+router.put('/tags/:id', login, isAdmin, async (req, res) => {
+    try {
+        const tag = await projectsService.updateTag(req.params.id, req.body);
+        return res.status(200).send(functions.createResponse('Tag atualizada com sucesso', tag, 'PUT', 200));
+    } catch (error) {
+        return res.status(400).send(functions.createResponse('Erro ao atualizar tag', error.message || error, 'PUT', 400));
+    }
+});
+
+router.delete('/tags/:id', login, isAdmin, async (req, res) => {
+    try {
+        await projectsService.deleteTag(req.params.id);
+        return res.status(200).send(functions.createResponse('Tag excluída com sucesso', null, 'DELETE', 200));
+    } catch (error) {
+        return res.status(400).send(functions.createResponse('Erro ao excluir tag', error.message || error, 'DELETE', 400));
+    }
+});
+
+// ================= ROTAS DE PROJETOS =================
 router.get('/', async (req, res) => {
     try {
         const projects = await projectsService.getPublishedProjects();

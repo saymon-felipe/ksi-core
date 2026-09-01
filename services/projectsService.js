@@ -17,6 +17,8 @@ const normalizeTags = (tags) => {
 
 const mapProject = (project) => ({
     ...project,
+    descriptionEn: project.descriptionEn || null,
+    descriptionEs: project.descriptionEs || null,
     published: Boolean(project.published),
     tags: normalizeTags(project.tags)
 });
@@ -30,6 +32,7 @@ const validateProject = (project) => {
 const getProjectById = async (id) => {
     const rows = await functions.executeSql(
         `SELECT id, titulo AS title, categoria AS category, descricao AS description,
+                descricao_en AS descriptionEn, descricao_es AS descriptionEs,
                 imagem_url AS image, imagem_key AS imageKey, link, tags,
                 publicado AS published, ordem AS displayOrder
          FROM portfolio_projetos WHERE id = ?`,
@@ -54,13 +57,26 @@ const saveProject = async (project, imageFile, id = null) => {
         ? current.displayOrder
         : (await functions.executeSql('SELECT COALESCE(MAX(ordem), 0) + 1 AS nextOrder FROM portfolio_projetos'))[0].nextOrder;
 
+    // Busca ou vincula categoria_id automaticamente
+    let categoriaId = null;
+    try {
+        const catRows = await functions.executeSql(
+            `SELECT id FROM portfolio_categorias WHERE nome = ? LIMIT 1`,
+            [project.category.trim()]
+        );
+        if (catRows.length > 0) {
+            categoriaId = catRows[0].id;
+        }
+    } catch (_) {}
+
     if (id) {
         await functions.executeSql(
             `UPDATE portfolio_projetos
-             SET titulo = ?, categoria = ?, descricao = ?, imagem_url = ?, imagem_key = ?,
+             SET titulo = ?, categoria = ?, categoria_id = ?, descricao = ?, descricao_en = ?, descricao_es = ?, imagem_url = ?, imagem_key = ?,
                  link = ?, tags = ?, publicado = ?, ordem = ?
              WHERE id = ?`,
-            [project.title.trim(), project.category.trim(), project.description.trim(), imageUrl, imageKey,
+            [project.title.trim(), project.category.trim(), categoriaId, project.description.trim(),
+             String(project.descriptionEn || '').trim() || null, String(project.descriptionEs || '').trim() || null, imageUrl, imageKey,
              link, tags, published, displayOrder, id]
         );
 
@@ -74,9 +90,10 @@ const saveProject = async (project, imageFile, id = null) => {
 
     const result = await functions.executeSql(
         `INSERT INTO portfolio_projetos
-         (titulo, categoria, descricao, imagem_url, imagem_key, link, tags, publicado, ordem)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [project.title.trim(), project.category.trim(), project.description.trim(), imageUrl, imageKey,
+         (titulo, categoria, categoria_id, descricao, descricao_en, descricao_es, imagem_url, imagem_key, link, tags, publicado, ordem)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [project.title.trim(), project.category.trim(), categoriaId, project.description.trim(),
+         String(project.descriptionEn || '').trim() || null, String(project.descriptionEs || '').trim() || null, imageUrl, imageKey,
          link, tags, published, displayOrder]
     );
     return result.insertId;
@@ -86,6 +103,7 @@ module.exports = {
     getPublishedProjects: async () => {
         const rows = await functions.executeSql(
             `SELECT id, titulo AS title, categoria AS category, descricao AS description,
+                    descricao_en AS descriptionEn, descricao_es AS descriptionEs,
                     imagem_url AS image, link, tags, publicado AS published, ordem AS displayOrder
              FROM portfolio_projetos
              WHERE publicado = 1
@@ -97,6 +115,7 @@ module.exports = {
     getAllProjects: async () => {
         const rows = await functions.executeSql(
             `SELECT id, titulo AS title, categoria AS category, descricao AS description,
+                    descricao_en AS descriptionEn, descricao_es AS descriptionEs,
                     imagem_url AS image, imagem_key AS imageKey, link, tags,
                     publicado AS published, ordem AS displayOrder
              FROM portfolio_projetos ORDER BY ordem ASC, id DESC`
@@ -130,5 +149,85 @@ module.exports = {
         await Promise.all(projectIds.map((id, index) =>
             functions.executeSql('UPDATE portfolio_projetos SET ordem = ? WHERE id = ?', [index + 1, id])
         ));
+    },
+
+    // CATEGORIAS
+    getCategories: async () => {
+        const rows = await functions.executeSql(
+            `SELECT id, nome AS name, slug, descricao AS description 
+             FROM portfolio_categorias 
+             ORDER BY nome ASC`
+        );
+        return rows;
+    },
+    createCategory: async (data) => {
+        const name = String(data.name || '').trim();
+        const slug = String(data.slug || '').trim();
+        const description = String(data.description || '').trim() || null;
+        if (!name) throw new Error('Nome da categoria é obrigatório.');
+
+        const result = await functions.executeSql(
+            `INSERT INTO portfolio_categorias (nome, slug, descricao) VALUES (?, ?, ?)`,
+            [name, slug, description]
+        );
+        return { id: result.insertId, name, slug, description };
+    },
+    updateCategory: async (id, data) => {
+        const name = String(data.name || '').trim();
+        const slug = String(data.slug || '').trim();
+        const description = String(data.description || '').trim() || null;
+        if (!name) throw new Error('Nome da categoria é obrigatório.');
+
+        await functions.executeSql(
+            `UPDATE portfolio_categorias SET nome = ?, slug = ?, descricao = ? WHERE id = ?`,
+            [name, slug, description, id]
+        );
+
+        // Sincroniza categoria_id e categoria em portfolio_projetos
+        await functions.executeSql(
+            `UPDATE portfolio_projetos SET categoria = ? WHERE categoria_id = ?`,
+            [name, id]
+        );
+        return { id: Number(id), name, slug, description };
+    },
+    deleteCategory: async (id) => {
+        await functions.executeSql(`DELETE FROM portfolio_categorias WHERE id = ?`, [id]);
+    },
+
+    // TAGS
+    getTags: async () => {
+        const rows = await functions.executeSql(
+            `SELECT id, nome AS name, slug, cor AS color 
+             FROM portfolio_tags 
+             ORDER BY nome ASC`
+        );
+        return rows;
+    },
+    createTag: async (data) => {
+        const name = String(data.name || '').trim();
+        const slug = String(data.slug || '').trim();
+        const color = String(data.color || '#38bdf8').trim();
+        if (!name) throw new Error('Nome da tag é obrigatório.');
+
+        const result = await functions.executeSql(
+            `INSERT INTO portfolio_tags (nome, slug, cor) VALUES (?, ?, ?)`,
+            [name, slug, color]
+        );
+        return { id: result.insertId, name, slug, color };
+    },
+    updateTag: async (id, data) => {
+        const name = String(data.name || '').trim();
+        const slug = String(data.slug || '').trim();
+        const color = String(data.color || '#38bdf8').trim();
+        if (!name) throw new Error('Nome da tag é obrigatório.');
+
+        await functions.executeSql(
+            `UPDATE portfolio_tags SET nome = ?, slug = ?, cor = ? WHERE id = ?`,
+            [name, slug, color, id]
+        );
+        return { id: Number(id), name, slug, color };
+    },
+    deleteTag: async (id) => {
+        await functions.executeSql(`DELETE FROM portfolio_tags WHERE id = ?`, [id]);
     }
 };

@@ -1,17 +1,21 @@
 require('dotenv').config();
-const contactReturn = require("./html/contact-return");
-const contactHtml = require("./html/contact");
 
-let templates = {
-    contactReturn: function () {
-        return contactReturn;
-    },
-    contact: function (name, email, tel, obs, requestType, ip) {
-        let date = new Date();
-        let now = `${date.getDate()}/${date.getMonth() - 1}/${date.getFullYear()} ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
-        let html = contactHtml.replace("{name}", name).replace("{email}", email).replace("{tel}", tel).replace("{obs}", obs).replace("{requestType}", requestType).replace("{ip}", ip).replace("{date}", now);
-        return html;
-    }
-}
+const customerTemplates = require('./html/contact-return');
+const teamTemplates = require('./html/contact');
 
-module.exports = templates;
+const normalizeLocale = (locale) => (locale === 'es' ? 'es' : locale === 'en' ? 'en' : 'pt-BR');
+const escapeHtml = (value = '') => String(value).replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]));
+const interpolate = (template, values) => template.replace(/{{(\w+)}}/g, (_, key) => escapeHtml(values[key]));
+
+module.exports = {
+  contactReturn(name, locale = 'pt-BR') {
+    return interpolate(customerTemplates[normalizeLocale(locale)], { name, year: new Date().getFullYear() });
+  },
+  contact(name, email, tel, obs, requestType, ip, locale = 'pt-BR') {
+    return interpolate(teamTemplates[normalizeLocale(locale)], {
+      name, email, tel, obs, requestType, ip,
+      date: new Intl.DateTimeFormat(normalizeLocale(locale), { dateStyle: 'short', timeStyle: 'medium' }).format(new Date()),
+      year: new Date().getFullYear()
+    });
+  }
+};

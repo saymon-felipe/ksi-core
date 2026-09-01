@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS `portfolio_projetos` (
   `titulo` varchar(255) NOT NULL,
   `categoria` varchar(120) NOT NULL,
   `descricao` text NOT NULL,
+  `descricao_en` text DEFAULT NULL,
+  `descricao_es` text DEFAULT NULL,
   `imagem_url` varchar(1000) NOT NULL,
   `imagem_key` varchar(1000) DEFAULT NULL,
   `link` varchar(1000) DEFAULT NULL,

@@ -4,6 +4,7 @@ const morgan = require('morgan');
 const bodyParser = require("body-parser");
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const i18n = require('./config/i18n');
 
 require('dotenv').config(); 
 
@@ -19,6 +20,7 @@ app.use(morgan('dev'));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(cookieParser());
+app.use(i18n.middleware);
 
 app.use(cors({
     origin: function (origin, callback) {
@@ -63,7 +65,7 @@ app.use('/projects', projectsRoute);
 app.use('/public', express.static('public'));
 
 app.use((req, res, next) => {
-    const erro = new Error("Não encontrado");
+    const erro = new Error(req.t('api.notFound'));
     erro.status = 404;
     next(erro);
 });
@@ -71,7 +73,7 @@ app.use((req, res, next) => {
 app.use((error, req, res, next) => {
     res.status(error.status || 500);
     return res.send({
-       mensagem: error.message
+       mensagem: error.message || req.t('api.serverError')
     });
 });
 
